@@ -1,0 +1,40 @@
+name: Backup - Build Only
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: 🔨 Build Flutter Web
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+
+    - name: Install dependencies
+      run: |
+        flutter pub get
+        flutter clean
+
+    - name: Build Web
+      run: flutter build web --release --pwa-strategy none
+
+    - name: Show build info
+      run: |
+        echo "📊 Build completed!"
+        echo "📁 Build directory content:"
+        ls -la build/web/
+        echo "📦 Total size:"
+        du -sh build/web/
+
+    - name: 📦 Upload build
+      uses: actions/upload-artifact@v4
+      with:
+        name: flutter-web-build
+        path: build/web
+        retention-days: 30

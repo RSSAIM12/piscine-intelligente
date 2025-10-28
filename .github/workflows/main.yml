@@ -1,4 +1,4 @@
-name: Flutter CI/CD
+name: Flutter CI/CD to Firebase
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 
 env:
   FLUTTER_VERSION: '3.22.0'
+  FIREBASE_PROJECT: 'piscineintelligente'
 
 jobs:
   test:
@@ -22,10 +23,6 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
-
-    - name: Show Flutter version
-      run: flutter --version
 
     - name: Get dependencies
       run: flutter pub get
@@ -37,19 +34,22 @@ jobs:
       run: flutter test
 
     - name: Build Web
+      run: flutter build web --release --no-wasm-dry-run
+
+    - name: Verify build
       run: |
-        flutter pub get
-        flutter build web --release --no-wasm-dry-run
+        echo "📁 Checking build directory..."
+        ls -la build/web/
+        echo "✅ Build completed successfully"
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: web-build
         path: build/web/
-        retention-days: 7
 
   deploy:
-    name: Deploy to Firebase
+    name: 🚀 Deploy to Firebase
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -72,17 +72,20 @@ jobs:
     - name: Install Firebase CLI
       run: npm install -g firebase-tools
 
-    - name: Debug - List files
+    - name: Verify Firebase project
+      run: |
+        echo "🔧 Configuring Firebase project: ${{ env.FIREBASE_PROJECT }}"
+        firebase use ${{ env.FIREBASE_PROJECT }} --token "${{ secrets.FIREBASE_TOKEN }}"
+
+    - name: List files before deploy
       run: ls -la build/web/
 
-    - name: Deploy to Firebase
-      env:
-        FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+    - name: 🚀 Deploy to Firebase Hosting
       run: |
-        if [ -z "$FIREBASE_TOKEN" ]; then
-          echo "❌ FIREBASE_TOKEN is not set"
-          echo "💡 Please add FIREBASE_TOKEN to repository secrets"
-          exit 1
-        fi
+        firebase deploy \
+          --only hosting \
+          --project ${{ env.FIREBASE_PROJECT }} \
+          --token "${{ secrets.FIREBASE_TOKEN }}" \
+          --non-interactive
         
-        firebase deploy --only hosting --token "$FIREBASE_TOKEN" --non-interactive
+        echo "✅ Deployment completed successfully!"
